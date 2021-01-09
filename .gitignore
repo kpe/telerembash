@@ -1,0 +1,9 @@
+.config.yaml
+*.egg-info
+dist
+build
+.venv
+.coverage
+.idea
+.python-version
+__pycache__

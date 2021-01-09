@@ -1,0 +1,7 @@
+pycodestyle
+coverage
+twine
+nose
+nose-exclude
+docutils
+wheel
