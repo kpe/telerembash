@@ -7,3 +7,4 @@ build
 .idea
 .python-version
 __pycache__
+telerem.config.yaml

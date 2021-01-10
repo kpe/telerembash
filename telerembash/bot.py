@@ -9,175 +9,146 @@ import os
 import logging
 import yaml
 from enum import Enum, auto
+from collections import defaultdict
 import subprocess
 
 from aiogram import Bot, Dispatcher, executor, types, filters
 import pyotp
+import params as pp
+
 
 log = logging.getLogger(__name__)
 
-logging.basicConfig(level=logging.DEBUG)
+db: Dispatcher = None
 
 
-def _load_config(default_path='.config.yaml', env_key='BOT_CONFIG'):
-    path = default_path
-    value = os.getenv(env_key, None)
-    if value:
-        path = value
-    if os.path.exists(path):
-        with open(path, 'r') as f:
-            config = yaml.safe_load(f.read())
-            return config
-    raise AttributeError(f"No config yaml found at:[{path}]")
-
-
-config = _load_config()
-
-totp = pyotp.TOTP(config['auth_secret'])
-
-# Initialize bot and dispatcher
-bot = Bot(token=config['api_token'])
-dp = Dispatcher(bot)
-
-
-class BotStates(Enum):
+class SessionState(Enum):
     NEW = auto()
     AWAITS_AUTH = auto()
     READY = auto()
 
 
-class BotState:
-    state = BotStates.NEW
-    user_id = None
-    user_name = None
-    chat_id = None
+class TeleRemBot(pp.WithParams):
+    class Params(pp.Params):
+        bot_name = pp.Param("TeleRemBash", dtype=str, doc="The Bot Name (used in the OTP provisioning uri only)")
+        api_token = pp.Param(None, dtype=str, doc="Telegram Bot API Token")
+        auth_secret = pp.Param(None, dtype=str, doc="OPT Authenticator Secret (RFC 6238)")
+        scripts_root = pp.Param("scripts", dtype=str, doc="scripts location")
+        username = pp.Param(None, dtype=str, doc="Username of the authorized user")
+        user_id = pp.Param(None, dtype=int, doc="User IDs of the authorized user")
+        
+        def to_abs_path(self, rel_path):
+            return rel_path if rel_path.startswith('/') else os.path.join(os.getcwd(), rel_path)
+        
+    @property
+    def params(self) -> Params:
+        return self._params
 
+    def _construct(self, *args, **kwargs):
+        super(TeleRemBot, self)._construct(*args, **kwargs)
+        if self.params.auth_secret is None:
+            raise AttributeError("AUTH_SECRET not specified")
+        self.totp = pyotp.TOTP(self.params.auth_secret)
+        
+        self.user_permits = [self.params.username]
+        self.user_id_permits = [self.params.user_id]
+        
+        # Initialize bot and dispatcher
+        self.bot = Bot(token=self.params.api_token)
+        self.dp = Dispatcher(self.bot)
+        self.chat2state = defaultdict(lambda: SessionState.NEW)   # chat_id to state
+        
+        self.dp.register_message_handler(self.start, commands=['start', 'auth'])
+        self.dp.register_message_handler(self.execute,
+                                         filters.RegexpCommandsFilter(regexp_commands=[r'/do\s+([a-z0-9]+)\s?(.*)']))
+        self.dp.register_message_handler(self.message_handler)
 
-state = BotState()
+    def _precondition_fail(self, message: types.Message, field: str, value: str):
+        log.debug(f"msg:[{message.to_python()}]")
+        log.warning(f"pre-condition fail: ${field}:[{value}]")
 
+    def check_preconditions(self, message: types.Message) -> bool:
+        user_id = message.from_user.id
+        user_name = message.from_user.username
+        chat_id = message.chat.id
+        chat_type = message.chat.type
 
-def _precondition_fail(message: types.Message, field: str, value: str):
-    log.debug(f"msg:[{message.to_python()}]")
-    log.warning(f"pre-condition fail: ${field}:[{value}]")
-
-
-def check_preconditions(message: types.Message) -> bool:
-    global state
-
-    user_id = message.from_user.id
-    user_name = message.from_user.username
-    chat_id = message.chat.id
-    chat_type = message.chat.type
-
-    if user_name not in config['users']:
-        _precondition_fail(message, 'user_name', user_name)
-        return False
-    if 'user_ids' in config and user_id not in config['user_ids']:
-        _precondition_fail(message, 'user_id', user_id)
-        return False
-    if chat_type != 'private':
-        _precondition_fail(message, 'chat_type', chat_type)
-        return False
-
-    if state.state not in [BotStates.NEW, BotStates.AWAITS_AUTH]:
-        if chat_id != state.chat_id:
-            _precondition_fail(message, 'chat_id', chat_id)
+        if user_name not in self.user_permits:
+            self._precondition_fail(message, 'user_name', user_name)
             return False
+        if self.user_id_permits and user_id not in self.user_id_permits:
+            self._precondition_fail(message, 'user_id', user_id)
+            return False
+        if chat_type != 'private':
+            self._precondition_fail(message, 'chat_type', chat_type)
+            return False
+        return True
 
-    return True
+    # @dp.message_handler(commands=['start', 'auth'])
+    async def start(self, message: types.Message):
+        if not self.check_preconditions(message):
+            return
 
-
-@dp.message_handler(commands=['start', 'auth'])
-async def start(message: types.Message):
-    global state
-
-    if not check_preconditions(message):
-        return
-
-    state = BotState()
-    state.state = BotStates.AWAITS_AUTH
-    await message.reply("auth first")
-
-
-async def on_auth_key(message: types.Message, callback=None):
-    if not totp.verify(message.text):
-        await message.answer("invalid")
-        return
-
-    state.state = BotStates.READY
-    state.user_id = message.from_user.id
-    state.user_name = message.from_user.username
-    state.chat_id = message.chat.id
-
-    if callback is not None:
-        await callback(message)
-
-
-async def on_auth_ok(message: types.Message):
-    await message.answer("Welcome, Master!")
-    await execute_script(message, 'welcome', '')
-
-
-@dp.message_handler(filters.RegexpCommandsFilter(regexp_commands=[r'/do\s+([a-z0-9]+)\s?(.*)']))
-async def execute(message: types.Message, regexp_command):
-    cmd = regexp_command.group(1)
-    params = regexp_command.group(2)
-    print("do:", regexp_command, (cmd, params), message.to_python())
-    await execute_script(message, cmd, params)
-
-
-async def execute_script(message: types.Message, cmd: str, params: str):
-    global config
-
-    script_root = os.getcwd()
-    script_path = f"{cmd}"
-    if 'scripts' in config and cmd in config['scripts']:
-        script_path = config['scripts'][cmd]
-    else:
-        await message.reply(f"Can't do [{cmd}]")
-    if 'scripts_root' in config:
-        script_root = os.path.join(script_root, config['scripts_root'])
-
-    script_file = os.path.join(script_root, script_path)
-    if not os.path.exists(script_file) and not script_path.endswith(".sh"):
-        script_file = os.path.join(script_root, script_path + ".sh")
-    if not os.path.exists(script_file):
-        await message.reply(f"Can't do [{cmd}]")
-        return
-
-    try:
-        out = subprocess.check_output([script_file] + params.split(), timeout=5)
-        await message.answer(out.decode('utf8'))
-    except Exception as ex:
-        print(ex)
-        await message.reply("failed")
-
-
-@dp.message_handler()
-async def message_handler(message: types.Message):
-    global state
-    if not check_preconditions(message):
-        return
-
-    if state.state == BotStates.NEW:
+        self.chat2state[message.chat.id] = SessionState.AWAITS_AUTH
         await message.reply("auth first")
-    if state.state == BotStates.AWAITS_AUTH:
-        await on_auth_key(message, on_auth_ok)
-    else:
-        if state.chat_id == message.chat.id:
+
+    async def on_auth_key(self, message: types.Message, callback=None):
+        chat_id = message.chat.id
+
+        if not self.totp.verify(message.text):
+            await message.answer("invalid")
+            if chat_id in self.chat2state:
+                del self.chat2state[chat_id]
+            return
+    
+        self.chat2state[chat_id] = SessionState.READY
+
+        if callback is not None:
+            await callback(message)
+
+    async def on_auth_ok(self, message: types.Message):
+        await message.answer("Welcome, Master!")
+        await self.execute_script(message, 'welcome', '')
+
+    # @dp.message_handler(filters.RegexpCommandsFilter(regexp_commands=[r'/do\s+([a-z0-9]+)\s?(.*)']))
+    async def execute(self, message: types.Message, regexp_command):
+        cmd = regexp_command.group(1)
+        params = regexp_command.group(2)
+        print("do:", regexp_command, (cmd, params), message.to_python())
+        await self.execute_script(message, cmd, params)
+
+    async def execute_script(self, message: types.Message, cmd: str, params: str):
+        script_root = self.params.scripts_root
+        script_file = os.path.join(script_root, f"{cmd}")
+        script_file = self.params.to_abs_path(script_file)
+
+        if not os.path.exists(script_file) and not script_file.endswith(".sh"):
+            script_file = self.params.to_abs_path(os.path.join(script_root, f"{cmd}.sh"))
+        if not os.path.exists(script_file):
+            await message.reply(f"Can't do [{cmd}]")
+            return
+    
+        try:
+            out = subprocess.check_output([script_file] + params.split(), timeout=5)
+            await message.answer(out.decode('utf8'))
+        except Exception as ex:
+            print(ex)
+            await message.reply("failed")
+
+    # @dp.message_handler()
+    async def message_handler(self, message: types.Message):
+        if not self.check_preconditions(message):
+            return
+        chat_id = message.chat.id
+
+        if chat_id not in self.chat2state:
+            await message.reply("auth first")
+        if self.chat2state[chat_id] == SessionState.AWAITS_AUTH:
+            await self.on_auth_key(message, self.on_auth_ok)
+        else:
             await message.reply("Don't understand")
 
-
-def print_totp_qr():
-    import sys
-    import subprocess
-    uri = totp.provisioning_uri(name='user', issuer_name='TeleRemBash')
-    sys.stdout.write(subprocess.check_output(['qrc', uri]).decode('utf8'))
-
-
-if __name__ == '__main__':
-    import telerembash as tb
-    print(f"TeleRemBash v{tb.__version__}")
-
-    print_totp_qr()
-    executor.start_polling(dp, skip_updates=True)
+    def main(self):
+        import telerembash as tb
+        print(f"TeleRemBash v{tb.__version__}")
+        executor.start_polling(self.dp, skip_updates=True)
