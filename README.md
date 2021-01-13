@@ -1,3 +1,0 @@
-# TeleRemBash Bot
-
-... work in progress ...

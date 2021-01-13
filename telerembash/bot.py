@@ -6,11 +6,10 @@
 from __future__ import division, absolute_import, print_function
 
 import os
-import logging
-import yaml
-from enum import Enum, auto
-from collections import defaultdict
+import re
+import time
 import subprocess
+import logging
 
 from aiogram import Bot, Dispatcher, executor, types, filters
 import pyotp
@@ -19,14 +18,6 @@ import params as pp
 
 log = logging.getLogger(__name__)
 
-db: Dispatcher = None
-
-
-class SessionState(Enum):
-    NEW = auto()
-    AWAITS_AUTH = auto()
-    READY = auto()
-
 
 class TeleRemBot(pp.WithParams):
     class Params(pp.Params):
@@ -34,11 +25,16 @@ class TeleRemBot(pp.WithParams):
         api_token = pp.Param(None, dtype=str, doc="Telegram Bot API Token")
         auth_secret = pp.Param(None, dtype=str, doc="OPT Authenticator Secret (RFC 6238)")
         scripts_root = pp.Param("scripts", dtype=str, doc="scripts location")
+        scripts_timeout = pp.Param(30, dtype=int, doc="execution timeout in seconds")
         username = pp.Param(None, dtype=str, doc="Username of the authorized user")
         user_id = pp.Param(None, dtype=int, doc="User IDs of the authorized user")
-        
-        def to_abs_path(self, rel_path):
-            return rel_path if rel_path.startswith('/') else os.path.join(os.getcwd(), rel_path)
+
+        @staticmethod
+        def resolve_path(path):
+            return path if path.startswith('/') else os.path.join(os.getcwd(), path)
+
+        def get_scripts_root(self):
+            return self.resolve_path(str(self.scripts_root))
         
     @property
     def params(self) -> Params:
@@ -50,103 +46,99 @@ class TeleRemBot(pp.WithParams):
             raise AttributeError("AUTH_SECRET not specified")
         self.totp = pyotp.TOTP(self.params.auth_secret)
         
-        self.user_permits = [self.params.username]
-        self.user_id_permits = [self.params.user_id]
-        
+        self.user_whitelist = [self.params.username]
+        self.user_id_whitelist = [self.params.user_id]
+        self.chat_id_whitelist = []
+
         # Initialize bot and dispatcher
         self.bot = Bot(token=self.params.api_token)
         self.dp = Dispatcher(self.bot)
-        self.chat2state = defaultdict(lambda: SessionState.NEW)   # chat_id to state
-        
-        self.dp.register_message_handler(self.start, commands=['start', 'auth'])
-        self.dp.register_message_handler(self.execute,
+
+        self.dp.register_message_handler(self.cmd_auth,
+                                         filters.RegexpCommandsFilter(regexp_commands=[r'/auth\s+([0-9]{6})']))
+        self.dp.register_message_handler(self.cmd_do_execute,
                                          filters.RegexpCommandsFilter(regexp_commands=[r'/do\s+([a-z0-9]+)\s?(.*)']))
-        self.dp.register_message_handler(self.message_handler)
+        self.dp.register_message_handler(self.default_message_handler)
 
     def _precondition_fail(self, message: types.Message, field: str, value: str):
-        log.debug(f"msg:[{message.to_python()}]")
-        log.warning(f"pre-condition fail: ${field}:[{value}]")
+        log.warning(f"pre-condition fail: {field}:[{value}]: {message.to_python()}")
 
-    def check_preconditions(self, message: types.Message) -> bool:
+    def check_preconditions(self, message: types.Message, allow_unauthorized=False) -> bool:
         user_id = message.from_user.id
         user_name = message.from_user.username
         chat_id = message.chat.id
-        chat_type = message.chat.type
 
-        if user_name not in self.user_permits:
+        if user_name not in self.user_whitelist:
             self._precondition_fail(message, 'user_name', user_name)
             return False
-        if self.user_id_permits and user_id not in self.user_id_permits:
+        if self.user_id_whitelist and user_id not in self.user_id_whitelist:
             self._precondition_fail(message, 'user_id', user_id)
             return False
-        if chat_type != 'private':
-            self._precondition_fail(message, 'chat_type', chat_type)
+        if not allow_unauthorized and chat_id not in self.chat_id_whitelist:
+            self._precondition_fail(message, 'chat_id', user_id)
             return False
+        if abs(int(message.date.timestamp()) - time.time()) > 10:
+            self._precondition_fail(message, 'date', str(message.date.timestamp()))
+            return False
+
         return True
 
-    # @dp.message_handler(commands=['start', 'auth'])
-    async def start(self, message: types.Message):
+    # @dp.message_handler(regex '/do\s+([0-9]+)')
+    async def cmd_auth(self, message: types.Message, regexp_command: re.Match):
+        if not self.check_preconditions(message, allow_unauthorized=True):
+            return
+        
+        token = regexp_command.group(1)
+        if not self.totp.verify(token):
+            await message.answer("invalid")
+            return
+
+        username = message.from_user.username
+        chat_id = message.chat.id
+        for cid in self.chat_id_whitelist:   # notify current chats
+            if cid != chat_id:
+                await self.bot.send_message(chat_id, f"Farewell! Serving {username}!")
+        self.chat_id_whitelist = [chat_id]
+        
+        await message.answer(f"Welcome, {username}!")
+        await self.execute_script(message, 'welcome', '', silent_if_not_found=True)
+
+    # @dp.message_handler(filters.RegexpCommandsFilter(regexp_commands=[r'/do\s+([a-z0-9]+)\s?(.*)']))
+    async def cmd_do_execute(self, message: types.Message, regexp_command: re.Match):
         if not self.check_preconditions(message):
             return
 
-        self.chat2state[message.chat.id] = SessionState.AWAITS_AUTH
-        await message.reply("auth first")
-
-    async def on_auth_key(self, message: types.Message, callback=None):
-        chat_id = message.chat.id
-
-        if not self.totp.verify(message.text):
-            await message.answer("invalid")
-            if chat_id in self.chat2state:
-                del self.chat2state[chat_id]
-            return
-    
-        self.chat2state[chat_id] = SessionState.READY
-
-        if callback is not None:
-            await callback(message)
-
-    async def on_auth_ok(self, message: types.Message):
-        await message.answer("Welcome, Master!")
-        await self.execute_script(message, 'welcome', '')
-
-    # @dp.message_handler(filters.RegexpCommandsFilter(regexp_commands=[r'/do\s+([a-z0-9]+)\s?(.*)']))
-    async def execute(self, message: types.Message, regexp_command):
         cmd = regexp_command.group(1)
         params = regexp_command.group(2)
-        print("do:", regexp_command, (cmd, params), message.to_python())
         await self.execute_script(message, cmd, params)
 
-    async def execute_script(self, message: types.Message, cmd: str, params: str):
-        script_root = self.params.scripts_root
+    async def execute_script(self, message: types.Message, cmd: str, params: str, silent_if_not_found=False):
+        script_root = self.params.get_scripts_root()
         script_file = os.path.join(script_root, f"{cmd}")
-        script_file = self.params.to_abs_path(script_file)
 
-        if not os.path.exists(script_file) and not script_file.endswith(".sh"):
-            script_file = self.params.to_abs_path(os.path.join(script_root, f"{cmd}.sh"))
-        if not os.path.exists(script_file):
-            await message.reply(f"Can't do [{cmd}]")
+        # auto append .sh suffix if there is no ext in the command
+        if not os.path.exists(script_file) and len(cmd.split(".")) == 1 and os.path.exists(script_file + ".sh"):
+            script_file += ".sh"
+        else:
+            if not silent_if_not_found:
+                await message.reply(f"Can't do [{cmd}]")
             return
     
         try:
-            out = subprocess.check_output([script_file] + params.split(), timeout=5)
+            out = subprocess.check_output([script_file] + params.split(),
+                                          timeout=self.params.scripts_timeout,
+                                          cwd=self.params.resolve_path(self.params.scripts_root),
+                                          )
             await message.answer(out.decode('utf8'))
         except Exception as ex:
-            print(ex)
+            log.warning(f"FAILED executing {script_file} {params.split()}: {ex}")
             await message.reply("failed")
 
     # @dp.message_handler()
-    async def message_handler(self, message: types.Message):
+    async def default_message_handler(self, message: types.Message):
         if not self.check_preconditions(message):
             return
-        chat_id = message.chat.id
-
-        if chat_id not in self.chat2state:
-            await message.reply("auth first")
-        if self.chat2state[chat_id] == SessionState.AWAITS_AUTH:
-            await self.on_auth_key(message, self.on_auth_ok)
-        else:
-            await message.reply("Don't understand")
+        await message.reply("Don't understand")
 
     def main(self):
         import telerembash as tb
