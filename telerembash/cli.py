@@ -51,7 +51,7 @@ class BotCli(pp.WithParams):
     def _do_init(self):
         def filter_empty_values(d: dict):
             return dict(filter(lambda t: t[1] is not None, d.items()))
-        
+
         def load_config():
             config = TeleRemBot.Params()
             config_path = self.params.config
@@ -110,7 +110,7 @@ class BotCli(pp.WithParams):
             qr.print_tty()
         except ModuleNotFoundError as ex:
             log.warning("qrcode not found, try: `pip install qrcode`")
-    
+
     def _do_start(self):
         params = TeleRemBot.Params.from_yaml_file(self.params.config)
         bot = TeleRemBot.from_params(params)

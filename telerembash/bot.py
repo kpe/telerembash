@@ -35,7 +35,7 @@ class TeleRemBot(pp.WithParams):
 
         def get_scripts_root(self):
             return self.resolve_path(str(self.scripts_root))
-        
+
     @property
     def params(self) -> Params:
         return self._params
@@ -45,7 +45,7 @@ class TeleRemBot(pp.WithParams):
         if self.params.auth_secret is None:
             raise AttributeError("AUTH_SECRET not specified")
         self.totp = pyotp.TOTP(self.params.auth_secret)
-        
+
         self.user_whitelist = [self.params.username]
         self.user_id_whitelist = [self.params.user_id]
         self.chat_id_whitelist = []
@@ -87,7 +87,7 @@ class TeleRemBot(pp.WithParams):
     async def cmd_auth(self, message: types.Message, regexp_command: re.Match):
         if not self.check_preconditions(message, allow_unauthorized=True):
             return
-        
+
         token = regexp_command.group(1)
         if not self.totp.verify(token):
             await message.answer("invalid")
@@ -99,7 +99,7 @@ class TeleRemBot(pp.WithParams):
             if cid != chat_id:
                 await self.bot.send_message(chat_id, f"Farewell! Serving {username}!")
         self.chat_id_whitelist = [chat_id]
-        
+
         await message.answer(f"Welcome, {username}!")
         await self.execute_script(message, 'welcome', '', silent_if_not_found=True)
 
@@ -123,7 +123,7 @@ class TeleRemBot(pp.WithParams):
             if not silent_if_not_found:
                 await message.reply(f"Can't do [{cmd}]")
             return
-    
+
         try:
             out = subprocess.check_output([script_file] + params.split(),
                                           timeout=self.params.scripts_timeout,

@@ -50,6 +50,7 @@ setup(name=f"{MOD_NAME}",
       author_email="kpe.git@gmailbox.org",
       packages=find_packages(exclude=["tests"]),
       package_data={"": ["*.txt", "*.rst"]},
+      scripts=['telerem'],
 
       zip_safe=True,
       install_requires=install_requires,

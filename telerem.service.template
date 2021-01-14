@@ -1,0 +1,16 @@
+# /etc/systemd/system/telerem.service
+[Unit]
+Description=TeleRemBash Bot
+ConditionPathExists=<TELEREM_BINARY>
+After=network.target
+
+[Service]
+Type=simple
+User=<TELEREM_USER>
+WorkingDirectory=<TELEREM_SCRIPTS_DIR>
+ExecStart=<TELEREM_BINARY> start --config <TELEREM_CONFIG>
+Restart=on-failure
+RestartSec=10
+
+[Install]
+WantedBy=multi-user.target
