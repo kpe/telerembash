@@ -1,0 +1,6 @@
+SYSTEMD_UNIT=/etc/systemd/system/${SERVICE_NAME}.service
+
+echo "creating service: $SYSTEMD_UNIT"
+cat <<EOF> $SYSTEMD_UNIT
+${_SYSTEMD_SERVICE_CONTENT}
+EOF

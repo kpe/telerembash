@@ -1,0 +1,43 @@
+#!/bin/sh
+
+#
+# Feel free to tweak the variables bellow
+#
+
+export SERVICE_NAME=${_SERVICE_NAME}
+export DAEMON_USER=${_TELEREM_USER}
+export TELEREM_HOME=${_TELEREM_HOME}
+export TELEREM_BINARY=${TELEREM_HOME}/.venv/bin/telerem
+export TELEREM_SCRIPTS_ROOT=${TELEREM_HOME}/scripts
+export TELEREMD_CONF_PATH=/etc/${SERVICE_NAME}.config.yaml
+export PID_FILE=/run/${SERVICE_NAME}/${SERVICE_NAME}.pid
+export PID_DIR=`dirname ${PID_FILE}`
+#
+# Do not edit bellow this point.
+#
+
+set -e
+
+echo "creating user: ${DAEMON_USER}"
+useradd -m -r -s /bin/false ${DAEMON_USER} || echo "user ${DAEMON_USER} already exists"
+echo "creating pid dir: ${PID_DIR}"
+mkdir -p $PID_DIR; chown ${DAEMON_USER}.${DAEMON_USER} ${PID_DIR};
+echo "creating python .venv for ${DAEMON_USER}..."
+su -l ${DAEMON_USER} -s /bin/bash -c "\
+  python3 -m venv .venv;                 \
+  source .venv/bin/activate;             \
+  pip install -U pip;                    \
+  mkdir -p ${TELEREM_SCRIPTS_ROOT};      \
+  touch ${TELEREM_SCRIPTS_ROOT}/welcome.sh;    \
+  chmod +x ${TELEREM_SCRIPTS_ROOT}/welcome.sh; "
+
+echo "creating welcome.sh: ${TELEREM_SCRIPTS_ROOT}/welcome.sh"
+cat <<EOF> ${TELEREM_SCRIPTS_ROOT}/welcome.sh
+${_WELCOME_SCRIPT_CONTENT}
+EOF
+
+echo "creating config: $TELEREMD_CONF_PATH"
+cat <<EOF> $TELEREMD_CONF_PATH
+${_TELEREMD_CONF_YAML_CONTENT}
+EOF
+

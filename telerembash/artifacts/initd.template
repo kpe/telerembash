@@ -1,0 +1,27 @@
+#!/bin/sh
+
+
+### BEGIN INIT INFO
+# Provides:          teleremd
+# Default-Start:     2 3 4 5
+# Default-Stop:      0 1 6
+# Short-Description: telerem start/stop
+# Description:       starts the TeleRemBash instance
+### END INIT INFO
+
+[ -r /lib/lsb/init-functions ] && . /lib/lsb/init-functions
+
+DAEMON_CONFIG=${TELEREMD_CONF_PATH}
+DAEMON_BINARY=${TELEREM_BINARY}
+[ -x $TELEREM ] || exit 0
+
+case "$1" in
+  status|start|stop)
+    $DAEMON_BINARY daemon $1 --config $DAEMON_CONFIG
+    ;;
+  *) echo "Usage: $0 start|stop|status" 1>&2
+    exit 3
+    ;;
+esac
+
+eixt 0

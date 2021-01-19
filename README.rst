@@ -72,32 +72,37 @@ and executing it (with the provided optional parameters).
 
 Run as a Service (WIP)
 ----------------------
-...WIP... coming soon ...
-
-You can also run your bot as a service by generating a
-systemd service unit or an OpenRC init script with:
+You can also create a systemd service or a daemon script for
+starting your bot as a daemon with:
 
 .. code:: bash
 
-    telerem service
+    telerem install --systemd | sudo bash  # for systemd
+    telerem install --initd   | sudo bash  #   otherwise
 
-this will create a ``telerem.service`` and a ``teleremd`` files,
-which you can manually install like this:
+this will:
+
+ 1. create a system user ``teleremd``
+ 2. setup a python venv under ``/home/teleremd/``
+ 3. create a service (either ``systemd`` or ``init.d``):
+
+   * systemd service unit ``/etc/systemd/system/teleremd.service``
+   * deamon script ``/etc/init.d/teleremd``
+
+ 4. populate the daemon configuration under ``/etc/teleremd.config.yaml``
+
+and finally:
 
 .. code:: bash
 
-    cp telerem.service /etc/systemd/system/telerem.service
-
-or if you don't use systemd, try something along those lines:
-
-.. code:: bash
-
-    cp teleremd /etc/init.d/
+   sudo systemctl daemon-reload   # for systemd
+   sudo systemctl start teleremd
 
 
 NEWS
 ----
- - **14.Jan.2021** - README: Usage instructions
+ - **16.Jan.2021** - install as a daemon (systemd or init.d)
+ - **15.Jan.2021** - README: Usage instructions
  - **09.Jan.2021** - initial commit
 
 LICENSE

@@ -1,0 +1,6 @@
+INITD_SCRIPT_PATH=/etc/init.d/$SERVICE_NAME
+
+echo "creating daemon script: $INITD_SCRIPT_PATH"
+cat <<EOF> $INITD_SCRIPT_PATH
+${_INITD_SCRIPT_CONTENT}
+EOF

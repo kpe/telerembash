@@ -1,0 +1,19 @@
+# /etc/systemd/system/teleremd.service
+[Unit]
+Description=TeleRemBash Bot
+ConditionPathExists=${TELEREM_BINARY}
+After=network.target
+
+[Service]
+Type=forking
+PIDFile=${PID_FILE}
+User=${DAEMON_USER}
+WorkingDirectory=${TELEREM_SCRIPTS_ROOT}
+ExecStart=/bin/sh -c "${TELEREM_BINARY} daemon start --config ${TELEREMD_CONF_PATH}"
+Restart=on-failure
+RestartSec=10
+StandardError=journal
+StandardOutput=journal
+
+[Install]
+WantedBy=multi-user.target

@@ -6,6 +6,7 @@
 from __future__ import division, absolute_import, print_function
 
 import os
+import sys
 import yaml
 import logging
 import logging.config
@@ -31,4 +32,4 @@ def setup_logging(default_path='logging.yaml', default_level=logging.INFO, env_k
     else:
         logging.basicConfig(level=default_level)
         coloredlogs.install(level=default_level)
-        print(f"Failed to load logging configuration:[{path}]. Using default configs")
+        print(f"Failed to load logging configuration:[{path}]. Using default configs", file=sys.stderr)

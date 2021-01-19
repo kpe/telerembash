@@ -49,8 +49,11 @@ setup(name=f"{MOD_NAME}",
       author="kpe",
       author_email="kpe.git@gmailbox.org",
       packages=find_packages(exclude=["tests"]),
-      package_data={"": ["*.txt", "*.rst"]},
-      scripts=['telerem'],
+      package_data={"": ["*.txt", "*.rst"],
+                    "telerembash": ["artifacts/*.yaml", "artifacts/*.template"]},
+      entry_points={
+          'console_scripts': ['telerem=telerembash.cli:main']
+      },
 
       zip_safe=True,
       install_requires=install_requires,
