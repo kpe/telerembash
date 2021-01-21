@@ -27,6 +27,7 @@ su -l ${DAEMON_USER} -s /bin/bash -c "\
   python3 -m venv .venv;                 \
   source .venv/bin/activate;             \
   pip install -U pip;                    \
+  pip install telerembash;               \
   mkdir -p ${TELEREM_SCRIPTS_ROOT};      \
   touch ${TELEREM_SCRIPTS_ROOT}/welcome.sh;    \
   chmod +x ${TELEREM_SCRIPTS_ROOT}/welcome.sh; "
