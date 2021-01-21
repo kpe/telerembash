@@ -18,6 +18,9 @@ import params as pp
 
 log = logging.getLogger(__name__)
 
+REX_AUTH = r'/auth\s+([0-9]{6})'
+REX_DO = r'/do\s+([a-z0-9]+)\s?(.*)'
+
 
 class TeleRemBot(pp.WithParams):
     class Params(pp.Params):
@@ -55,9 +58,9 @@ class TeleRemBot(pp.WithParams):
         self.dp = Dispatcher(self.bot)
 
         self.dp.register_message_handler(self.cmd_auth,
-                                         filters.RegexpCommandsFilter(regexp_commands=[r'/auth\s+([0-9]{6})']))
+                                         filters.RegexpCommandsFilter(regexp_commands=[REX_AUTH]))
         self.dp.register_message_handler(self.cmd_do_execute,
-                                         filters.RegexpCommandsFilter(regexp_commands=[r'/do\s+([a-z0-9]+)\s?(.*)']))
+                                         filters.RegexpCommandsFilter(regexp_commands=[REX_DO]))
         self.dp.register_message_handler(self.default_message_handler)
 
     def _precondition_fail(self, message: types.Message, field: str, value: str):
