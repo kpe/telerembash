@@ -15,6 +15,10 @@ after a successful `TOTP`_ Authentication to execute a pre-defined
 
     /do some-script optional-param1
 
+
+|ASCIINEMA|
+
+
 Usage
 -----
 To install from pypi:
@@ -28,10 +32,10 @@ the bot's ``API_TOKEN`` and the Telegram username of the whitelisted user:
 
 .. code:: bash
 
-   telerem init --api_token API_TOKEN --username USERNAME
+   telerem init --api-token API_TOKEN --username USERNAME
 
 this should create a ``telerem.config.yaml`` in the current directory
-and output a QR Code you can scan in your TOTP Authenticator App (i.e.
+and output a QR Code to be scanned in your TOTP Authenticator App (i.e.
 `Google Authenticator`_, `andOTP`_, etc).
 
 To see all available options, try:
@@ -141,3 +145,5 @@ Resources
 .. |Downloads| image:: https://img.shields.io/pypi/dm/telerembash.svg
 .. |Twitter| image:: https://img.shields.io/twitter/follow/siddhadev?logo=twitter&label=&style=
    :target: https://twitter.com/intent/user?screen_name=siddhadev
+.. |ASCIINEMA| image:: https://asciinema.org/a/7p3UUcdffGQDyfBhBf5cm8tBw.png
+   :target: https://asciinema.org/a/7p3UUcdffGQDyfBhBf5cm8tBw?t=5
