@@ -145,5 +145,5 @@ Resources
 .. |Downloads| image:: https://img.shields.io/pypi/dm/telerembash.svg
 .. |Twitter| image:: https://img.shields.io/twitter/follow/siddhadev?logo=twitter&label=&style=
    :target: https://twitter.com/intent/user?screen_name=siddhadev
-.. |ASCIINEMA| image:: https://asciinema.org/a/7p3UUcdffGQDyfBhBf5cm8tBw.png
-   :target: https://asciinema.org/a/7p3UUcdffGQDyfBhBf5cm8tBw?t=5
+.. |ASCIINEMA| image:: telerembash.svg?raw=true&sanitize=true
+   :target: https://asciinema.org/a/7p3UUcdffGQDyfBhBf5cm8tBw?t=5&speed=3
