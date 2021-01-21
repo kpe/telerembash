@@ -1,6 +1,8 @@
 TeleRemBash
 ===========
 
+|Build Status| |Coverage Status| |Version Status| |Python Versions| |Downloads|
+
 ``TeleRemBash`` is a `Telegram`_ Remote Bash `Bot`_ for executing
 scripts on the remote system, baked with `TOTP`_ Authentication for
 easy and secure setup.
@@ -101,7 +103,7 @@ and finally:
 
 NEWS
 ----
- - **16.Jan.2021** - install as a daemon (systemd or init.d)
+ - **16.Jan.2021** - install as a systemd service (init.d still WIP)
  - **15.Jan.2021** - README: Usage instructions
  - **09.Jan.2021** - initial commit
 
@@ -123,5 +125,17 @@ Resources
 .. _`TOTP`: https://en.wikipedia.org/wiki/Time-based_One-Time_Password
 .. _`Telegram`: https://core.telegram.org/api
 .. _`Bot`: https://core.telegram.org/bots
-.. _`Google Authenticator`: https://play.google.com/store/apps/details?id=org.shadowice.flocke.andotp
+.. _`Google Authenticator`: https://play.google.com/store/apps/details?id=com.google.android.apps.authenticator2
 .. _`andOTP`: https://play.google.com/store/apps/details?id=org.shadowice.flocke.andotp
+
+
+.. |Build Status| image:: https://travis-ci.org/kpe/telerembash.svg?branch=master
+   :target: https://travis-ci.org/kpe/telerembash
+.. |Coverage Status| image:: https://coveralls.io/repos/kpe/telerembash/badge.svg?branch=master
+   :target: https://coveralls.io/r/kpe/telerembash?branch=master
+.. |Version Status| image:: https://badge.fury.io/py/telerembash.svg
+   :target: https://badge.fury.io/py/telerembash
+.. |Python Versions| image:: https://img.shields.io/pypi/pyversions/telerembash.svg
+.. |Downloads| image:: https://img.shields.io/pypi/dm/telerembash.svg
+.. |Twitter| image:: https://img.shields.io/twitter/follow/siddhadev?logo=twitter&label=&style=
+   :target: https://twitter.com/intent/user?screen_name=siddhadev
