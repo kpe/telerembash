@@ -129,8 +129,8 @@ Resources
 .. _`andOTP`: https://play.google.com/store/apps/details?id=org.shadowice.flocke.andotp
 
 
-.. |Build Status| image:: https://travis-ci.org/kpe/telerembash.svg?branch=master
-   :target: https://travis-ci.org/kpe/telerembash
+.. |Build Status| image:: https://travis-ci.com/kpe/telerembash.svg?branch=master
+   :target: https://travis-ci.com/kpe/telerembash
 .. |Coverage Status| image:: https://coveralls.io/repos/kpe/telerembash/badge.svg?branch=master
    :target: https://coveralls.io/r/kpe/telerembash?branch=master
 .. |Version Status| image:: https://badge.fury.io/py/telerembash.svg
