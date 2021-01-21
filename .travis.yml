@@ -1,52 +1,49 @@
 language: python
 python:
-    - "3.6"
+- "3.6"
 dist: trusty
 
 # Enable 3.7 without globally enabling sudo and dist: xenial for other build jobs
 matrix:
-    include:
-    - python: 3.7
-      dist: xenial
+  include:
+  - python: 3.7
+    dist: xenial
 
 env:
-    - PEP8_IGNORE="E221,E501,W504,W391,E241"
+- PEP8_IGNORE="E221,E501,W504,W391,E241"
 
 # command to install dependencies
 install:
-    - pip install --upgrade pip setuptools
-    - pip install -r requirements.txt
-    - pip install -r requirements-dev.txt
+- pip install --upgrade pip setuptools
+- pip install -r requirements.txt
+- pip install -r requirements-dev.txt
 
 # command to run tests
 # require 100% coverage (not including test files) to pass Travis CI test
 # To skip pypy: - if [[ $TRAVIS_PYTHON_VERSION != 'pypy' ]]; then DOSTUFF ; fi
 script:
-    - export MAJOR_PYTHON_VERSION=`echo $TRAVIS_PYTHON_VERSION | cut -c 1`
-    - coverage run --source=telerembash
-                   $(which nosetests) -v
-                   --with-doctest tests/
-                   --exclude-dir tests/nonci/
-    - if [[ $TRAVIS_PYTHON_VERSION == 3.7 ]]; then coverage report --show-missing --fail-under=40 ; fi
-    - if [[ $TRAVIS_PYTHON_VERSION == 3.7 ]]; then pycodestyle --ignore=$PEP8_IGNORE  --exclude=tests,.venv -r --show-source . ; fi
-    # For convenience, make sure simple test commands work
-    - python setup.py develop
-    # - py.test
-    # - nosetests -e tests.nonci.*
+- export MAJOR_PYTHON_VERSION=`echo $TRAVIS_PYTHON_VERSION | cut -c 1`
+- coverage run --source=telerembash $(which nosetests) -v --with-doctest tests/ --exclude-dir tests/nonci/
+- if [[ $TRAVIS_PYTHON_VERSION == 3.7 ]]; then coverage report --show-missing --fail-under=40 ; fi
+- if [[ $TRAVIS_PYTHON_VERSION == 3.7 ]]; then pycodestyle --ignore=$PEP8_IGNORE  --exclude=tests,.venv -r --show-source . ; fi
+# For convenience, make sure simple test commands work
+- python setup.py develop
+# - py.test
+# - nosetests -e tests.nonci.*
 
 # load coverage status to https://coveralls.io
 after_success:
-    - 'echo travis-python: $TRAVIS_PYTHON_VERSION'
-    - if [[ $TRAVIS_PYTHON_VERSION == 3.7 ]]; then pip install coveralls; COVERALLS_REPO_TOKEN=$COVERALLS_REPO_TOKEN coveralls ; fi
+- 'echo travis-python: $TRAVIS_PYTHON_VERSION'
+- if [[ $TRAVIS_PYTHON_VERSION == 3.7 ]]; then pip install coveralls; COVERALLS_REPO_TOKEN=$COVERALLS_REPO_TOKEN coveralls ; fi
 
 notifications:
   email: false
-  
+
 deploy:
   provider: pypi
   username: kpe
   password:
-    secure: f0eW6gfuwSBrUHnPZKSTBRtkqOaMLaFowdsp1Z2WXMA/tRoZgrPoZ6hVuNFwMt0NjDO1/ZTVkbRU4Osjzcn9uvf3mtZk2O+r/sYr5WWYZxm9rUow5Ct1tlmg427QjhYqveJl7/01bSXytc3mAMw9t4IV00PU7WgiGpSNZoX60o/AbV56BAbcGfHSPkE2Rs3rXg8eU3OtUerNlFW31HScUbCaUTnUbvkypjYdyCr4vV0OTO8x7bGgG71c7mKMtU52t1Eei2sYbR7ClxW8UXBogse0kWYI0Ivkl4vbE5gwdBQKn1r50ilQBjiWPVah8ulBky7e23n+eRAVBYTjuRBV3lMl6Lunf8BRQH+VlTGvdcs3ul138Bh0rUqGdMXYe4cYykcm+pQ5Yq7/pqTW/HQoiFZCCGWzXILq4Jqms1Rj4NRtLn228GPOnza5B1bhr8gzJc3H0QRkW1v6kK2U/QJ4EkDhHs4C45trZpw1Kr2ViGk46lVryRCemckiyEZ7k9uZrp/XFsin+Sw9tgFSOIUfUPJgRBw5WKH3XhLM1Ch/fBesGL2pdHB5U+AySP1TqOMbAj3RC9mzQ7JIE6/QaGI9uYq42C4eXT3U4UGUKamIRJ8Gz/PlM+/rvVoY3IOAlyl4PWiMJZ7A5a2f2TDp6wVE1IPWPZKsND6WGAsE8Momn7M=
+    secure: o9y3rFGcc6tCf4kDnkOqENQGwOhIHgnCQxyB9JwUcWwEZwjvPJxHKBpYJ3PLyaDMu1ThrIwhOmMF1V+Jq2OuWAKkggZKS98f/52gZLZzcG5vswuB1vSSi31u7fDuobXcRiGd2Ne20FOo5jhUDBQKt6bNd+0aGucIAsV9tmWBeiEUSvz6RTs8GcdONEUrYr5yUStCWyNISAgwjqrtl7RtfUkQm+mzAOzgSbNzRAJZkhNqN2BQVXXq7NB8vjnHptlEQOdSQ7u9vRSBReneJyQy50kOlwK/N59rTYkEG/8N3bX4FqXuBY+hAe7geEUVhU8SJKRoQdTwsL0gt4Z0CJVGHLhALgZcpw5LhhdZoIAk9zReoKVub1lO5tkmw7SBMCEkQh7paCEEefPp00DVUFCXA1Ie8CidtiIRUUTVHjOqxkAzNQTZm3C7fK/Xa/xVp+NEfM+zWzDaJeoszvAEwqLBZPM7/cif5oIBgOU93UF0+BFxXWWW3IyKeEQV2KawucKq0aA0e88Q2FlmRGhWmvy2c3v1y7aodliEL0qcEGvYzFW5dFl0vFFaY4UWOO20avHyfsZL+Xzy/CAK4ErCV4zr/gxmUUavzxkaWuUC5jSUil0RK39Mg1qdOYFcmILlSlAetP54Mhh2KlPuIsL/pmafdB2U6eZMR0Av9npQTmrDK2U=
   on:
     tags: true
     branch: master
